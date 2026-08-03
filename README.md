@@ -6,7 +6,7 @@
 
 **A browser audio workbench — analyse, separate, retune, and export a mix, entirely on the client. Zero dependencies. No uploads.**
 
-[**▶ Live demo**](https://REPLACE-WITH-YOUR-VERCEL-URL) &nbsp;·&nbsp; [Run it locally](#run-it-locally)
+[**▶ Live demo**](https://luxen-mix-analyzer.vercel.app) &nbsp;·&nbsp; [Run it locally](#run-it-locally)
 
 </div>
 
