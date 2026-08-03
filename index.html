@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Luxen Mix Analyzer — analyse, separate, retune, export</title>
+<meta name="description" content="A browser audio workbench: ITU-R BS.1770-4 LUFS metering, hand-rolled FFT frequency balance, phase-vocoder retune, spectral vocal/instrumental separation, and a spatial track map. Zero dependencies, runs entirely in your browser — no uploads.">
+<meta name="author" content="Justice Brutus — Luxen">
+<meta name="theme-color" content="#080b11">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+
+<!-- Open Graph / Twitter. IMPORTANT: after deploying, replace the placeholder
+     host below with your real URL so the link-preview card renders. One command:
+       sed -i 's#https://REPLACE-WITH-YOUR-VERCEL-URL#https://your-real-url.vercel.app#g' index.html -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Luxen Mix Analyzer">
+<meta property="og:url" content="https://REPLACE-WITH-YOUR-VERCEL-URL/">
+<meta property="og:title" content="Luxen Mix Analyzer — a browser audio workbench">
+<meta property="og:description" content="LUFS metering, hand-rolled FFT, phase-vocoder retune, vocal/instrumental separation, and a spatial track map. Zero dependencies, all local.">
+<meta property="og:image" content="https://REPLACE-WITH-YOUR-VERCEL-URL/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Luxen Mix Analyzer — a browser audio workbench">
+<meta name="twitter:description" content="Analyse, separate, retune, and export — hand-rolled DSP, zero dependencies, runs entirely in your browser.">
+<meta name="twitter:image" content="https://REPLACE-WITH-YOUR-VERCEL-URL/og-image.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header>
+  <div class="brand-chip">LUXEN</div>
+  <h1>Mix Analyzer</h1>
+  <p>A browser audio workbench &mdash; read a mix scorecard, sweeten with EQ, retune, split vocal from instrumental, and explore your track in space.</p>
+  <div class="hero-tags">
+    <span class="chip">LUFS metering</span>
+    <span class="chip">FFT balance</span>
+    <span class="chip">Phase-vocoder retune</span>
+    <span class="chip">Vocal / instrumental</span>
+    <span class="chip">Spatial map</span>
+    <span class="chip chip-priv">Local only — no uploads</span>
+  </div>
+</header>
+
+<!-- Persistent transport + file, shared across tabs -->
+<label class="uploader" id="uploader" for="fileInput">
+  <div class="big">Drop an audio file here, or click to browse</div>
+  <div class="small">.mp3 .wav .flac .m4a &mdash; all processing happens locally in your browser</div>
+  <input id="fileInput" type="file" accept="audio/*">
+</label>
+
+<div class="demo-row">
+  <button id="demoBtn" class="secondary">Load demo track</button>
+  <span>No file handy? Load a 35-second demo and hear every feature instantly.</span>
+</div>
+
+<div class="controls">
+  <button id="playBtn" disabled>Play</button>
+  <button id="pauseBtn" class="secondary" disabled>Pause</button>
+  <button id="restartBtn" class="secondary" disabled>Restart</button>
+  <span id="fileLabel"></span>
+</div>
+
+<div class="transport">
+  <span id="timeCur" class="time">0:00</span>
+  <div class="seek-wrap">
+    <input type="range" id="seekBar" min="0" max="1000" value="0" step="1" disabled aria-label="Seek through the track">
+  </div>
+  <span id="timeTotal" class="time">0:00</span>
+</div>
+
+<div class="ab-row">
+  <span class="ab-label">A/B Compare</span>
+  <button id="abA" class="secondary active" disabled>A</button>
+  <button id="abB" class="secondary" disabled>B</button>
+  <button id="abClear" class="secondary" disabled>Clear</button>
+  <span class="ab-hint">Two versions of your EQ &amp; tuning. Tweak A, switch to B and tweak differently, toggle to compare.</span>
+</div>
+
+<!-- Tabs -->
+<div class="tabs" role="tablist" aria-label="Analyzer views">
+  <button class="tab" role="tab" id="tab-analyze" aria-controls="panel-analyze" aria-selected="true">Analyze</button>
+  <button class="tab" role="tab" id="tab-field" aria-controls="panel-field" aria-selected="false">Field</button>
+  <button class="tab" role="tab" id="tab-stems" aria-controls="panel-stems" aria-selected="false">Stems</button>
+</div>
+
+<!-- ============ ANALYZE ============ -->
+<section class="tab-panel" id="panel-analyze" role="tabpanel" aria-labelledby="tab-analyze" data-active="true">
+
+  <div class="grid">
+    <div class="card">
+      <h2>Mix Quality Scorecard</h2>
+      <div id="scorecard">
+        <div class="empty-state">Load a track to see analysis.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Live Frequency Spectrum</h2>
+      <canvas class="spectrum" id="spectrumCanvas" aria-hidden="true"></canvas>
+      <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--faint); margin-top:6px; font-family:var(--font-data);">
+        <span>20 Hz</span><span>200 Hz</span><span>2 kHz</span><span>20 kHz</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h2>EQ Sweetener &mdash; Post-Mix Polish</h2>
+    <p style="margin:-4px 0 0; color:var(--muted); font-size:12px; font-family:var(--font-data);">
+      A clean 3-band EQ for sweetening a finished mix. Subtle moves only &mdash; try &plusmn;2 dB first.
+    </p>
+    <div class="eq">
+      <div class="eq-band">
+        <label><div class="freq">LOW</div>shelf @ 200 Hz</label>
+        <input type="range" id="eqLow" min="-12" max="12" value="0" step="0.5">
+        <div class="gain" id="eqLowVal">0.0 dB</div>
+      </div>
+      <div class="eq-band">
+        <label><div class="freq">MID</div>peak @ 1.5 kHz</label>
+        <input type="range" id="eqMid" min="-12" max="12" value="0" step="0.5">
+        <div class="gain" id="eqMidVal">0.0 dB</div>
+      </div>
+      <div class="eq-band">
+        <label><div class="freq">AIR</div>shelf @ 8 kHz</label>
+        <input type="range" id="eqHigh" min="-12" max="12" value="0" step="0.5">
+        <div class="gain" id="eqHighVal">0.0 dB</div>
+      </div>
+    </div>
+    <div class="preset-row">
+      <button class="preset" data-low="0"    data-mid="0"    data-high="0">Flat (bypass)</button>
+      <button class="preset" data-low="2"    data-mid="-1"   data-high="2.5">Warm + bright</button>
+      <button class="preset" data-low="-1.5" data-mid="0"    data-high="3">Air lift</button>
+      <button class="preset" data-low="2.5"  data-mid="0.5"  data-high="0">Radio low-end</button>
+      <button class="preset" data-low="0"    data-mid="-2"   data-high="2">Smile (V-shape)</button>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;">
+    <h2>Frequency &amp; Tuning</h2>
+    <p style="margin:-4px 0 0; color:var(--muted); font-size:12px; font-family:var(--font-data);">
+      See the song's dominant frequency live. Shift pitch by semitones, or snap to a tuning standard.
+    </p>
+
+    <div style="margin-top:14px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+      <span style="font-family:var(--font-data); font-size:11px; color:var(--faint); text-transform:uppercase; letter-spacing:0.1em; margin-right:4px;">Mode</span>
+      <button class="mode-btn active" data-mode="speed">Speed (instant, changes tempo)</button>
+      <button class="mode-btn" data-mode="pitch">Pitch (preserves tempo, slower)</button>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:12px;">
+      <div style="background:var(--field); border:1px solid var(--hair); border-radius:4px; padding:14px;">
+        <div style="font-family:var(--font-data); font-size:10px; color:var(--faint); text-transform:uppercase; letter-spacing:0.14em;">Detected dominant</div>
+        <div id="detectedFreq" style="font-family:var(--font-data); font-size:26px; font-weight:600; color:var(--accent); margin-top:4px; font-variant-numeric:tabular-nums;">&mdash; Hz</div>
+        <div id="detectedHint" style="font-family:var(--font-data); font-size:11px; color:var(--faint); margin-top:4px;">Press play to detect.</div>
+      </div>
+      <div style="background:var(--field); border:1px solid var(--hair); border-radius:4px; padding:14px;">
+        <div style="font-family:var(--font-data); font-size:10px; color:var(--faint); text-transform:uppercase; letter-spacing:0.14em;">Current tuning</div>
+        <div id="currentTuning" style="font-family:var(--font-data); font-size:26px; font-weight:600; margin-top:4px; font-variant-numeric:tabular-nums;">440 Hz</div>
+        <div style="font-family:var(--font-data); font-size:11px; color:var(--faint); margin-top:4px;">Standard concert pitch (A4).</div>
+      </div>
+    </div>
+
+    <div style="margin-top:20px;">
+      <label style="font-family:var(--font-data); font-size:11px; color:var(--muted); display:flex; justify-content:space-between; margin-bottom:6px; text-transform:uppercase; letter-spacing:0.06em;">
+        <span>Pitch shift (semitones)</span>
+        <span id="pitchVal" style="color:var(--accent); font-weight:600; font-variant-numeric:tabular-nums;">0.00 st &nbsp; &times;1.0000</span>
+      </label>
+      <input type="range" id="pitchSlider" min="-12" max="12" value="0" step="0.05">
+      <div style="display:flex; justify-content:space-between; font-size:10px; color:var(--faint); margin-top:4px; font-family:var(--font-data);">
+        <span>-1 octave</span><span>0</span><span>+1 octave</span>
+      </div>
+    </div>
+
+    <div class="preset-row" style="margin-top:16px;">
+      <button class="preset" data-tuning="432">432 Hz</button>
+      <button class="preset" data-tuning="440">440 Hz (standard)</button>
+      <button class="preset" data-tuning="444">444 Hz</button>
+      <button class="preset" data-tuning="528">528 Hz</button>
+      <button class="preset" id="resetPitch">Reset</button>
+    </div>
+
+    <div id="pitchApplyRow" style="display:none; margin-top:14px; align-items:center; gap:12px;">
+      <button id="applyPitchBtn">Apply Pitch Shift (tempo-preserving)</button>
+      <span id="pitchStatus" style="font-family:var(--font-data); font-size:12px; color:var(--muted);"></span>
+    </div>
+
+    <p id="modeNote" style="margin-top:14px; padding:10px 12px; background:rgba(88,230,200,0.06); border-left:2px solid var(--accent); color:var(--muted); font-size:12px; font-family:var(--font-data); line-height:1.5; border-radius:0 4px 4px 0;">
+      <b style="color:var(--accent);">Speed mode:</b> the pitch shifter uses Web Audio playbackRate &mdash; instant and real-time, but tempo changes with pitch (like a tape varispeed). Switch to Pitch mode for tempo-preserving phase-vocoder processing.
+    </p>
+  </div>
+  <div class="card" style="margin-top:16px;">
+    <h2>Export Variation</h2>
+    <p style="margin:-4px 0 0; color:var(--muted); font-size:12px; font-family:var(--font-data); line-height:1.5;">
+      Render the current EQ + tuning/pitch settings offline into a .wav and download it.
+      Dial in a version you like, then keep it.
+    </p>
+    <div style="display:flex; align-items:center; gap:12px; margin-top:14px; flex-wrap:wrap;">
+      <button id="downloadBtn" disabled>Render &amp; Download .wav</button>
+      <span id="downloadStatus" style="font-family:var(--font-data); font-size:12px; color:var(--muted);"></span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FIELD ============ -->
+<section class="tab-panel" id="panel-field" role="tabpanel" aria-labelledby="tab-field">
+  <p style="margin:0 0 12px; color:var(--muted); font-size:12px; font-family:var(--font-data); line-height:1.5;">
+    Every dot is a moment in the loaded track, placed by what it sounds like &mdash; horizontal by
+    brightness (spectral centroid), vertical by energy (RMS). Click any dot to jump playback there.
+    The ring marks where you are now. Drag to pan, scroll to zoom.
+  </p>
+  <div class="field-wrap">
+    <canvas id="fieldCanvas" tabindex="0" aria-label="Spatial map of the track. Click a point to seek to that moment."></canvas>
+    <div class="field-empty" id="fieldEmpty">Load a track on the Analyze tab to map it here.</div>
+    <div class="field-hud" id="fieldHud"></div>
+  </div>
+</section>
+
+<!-- ============ STEMS ============ -->
+<section class="tab-panel" id="panel-stems" role="tabpanel" aria-labelledby="tab-stems">
+  <p style="margin:0 0 14px; color:var(--muted); font-size:12px; font-family:var(--font-data); line-height:1.5;">
+    Separate the loaded track into <b style="color:var(--accent);">vocal</b> and
+    <b style="color:var(--accent);">instrumental</b>, then solo or mute each. Hand-rolled spectral
+    center-channel extraction &mdash; no ML, no server, entirely in your browser. It's DSP, so expect
+    some residual bleed; cleanest on stereo mixes with a centered lead vocal.
+  </p>
+
+  <div class="stem-transport">
+    <button id="separateBtn" disabled>Separate Track</button>
+    <button id="stemPlayBtn" class="secondary" disabled>Play</button>
+    <button id="stemStopBtn" class="secondary" disabled>Stop</button>
+    <span id="stemStatus" style="font-family:var(--font-data); font-size:12px; color:var(--muted);">Load a track first.</span>
+  </div>
+  <div class="sep-progress" id="sepProgress" style="display:none;"><span class="sep-bar" id="sepBar"></span></div>
+
+  <div class="stems stems-2">
+    <div class="stem" data-band="vocal">
+      <div class="stem-head"><span class="stem-name">VOCAL</span><span class="stem-range">acapella</span></div>
+      <div class="stem-meter"><span class="stem-fill" id="meter-vocal"></span></div>
+      <div class="stem-btns">
+        <button class="stem-toggle" data-act="solo" data-band="vocal" aria-pressed="false">Solo</button>
+        <button class="stem-toggle" data-act="mute" data-band="vocal" aria-pressed="false">Mute</button>
+        <button class="stem-toggle stem-dl" data-dl="vocal" disabled title="Download this stem as WAV">&darr; WAV</button>
+      </div>
+    </div>
+    <div class="stem" data-band="instrumental">
+      <div class="stem-head"><span class="stem-name">INSTRUMENTAL</span><span class="stem-range">backing track</span></div>
+      <div class="stem-meter"><span class="stem-fill" id="meter-instrumental"></span></div>
+      <div class="stem-btns">
+        <button class="stem-toggle" data-act="solo" data-band="instrumental" aria-pressed="false">Solo</button>
+        <button class="stem-toggle" data-act="mute" data-band="instrumental" aria-pressed="false">Mute</button>
+        <button class="stem-toggle stem-dl" data-dl="instrumental" disabled title="Download this stem as WAV">&darr; WAV</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  Built by Justice Brutus &mdash; Luxen &middot; Web Audio API &middot; hand-rolled FFT / ITU-R BS.1770-4 LUFS / phase vocoder &middot; zero dependencies &middot; no uploads, no tracking.<br>
+  Demo track: &ldquo;On a Fence&rdquo; &mdash; written, produced, and performed by Justice Brutus (Luxen).
+</footer>
+
+<script>
+  // Tab switching — accessible, no dependencies.
+  (function () {
+    const tabs = Array.from(document.querySelectorAll('.tab'));
+    const panels = {
+      'tab-analyze': document.getElementById('panel-analyze'),
+      'tab-field':   document.getElementById('panel-field'),
+      'tab-stems':   document.getElementById('panel-stems'),
+    };
+    function select(tab) {
+      tabs.forEach(t => {
+        const on = t === tab;
+        t.setAttribute('aria-selected', on ? 'true' : 'false');
+        panels[t.id].setAttribute('data-active', on ? 'true' : 'false');
+      });
+    }
+    tabs.forEach((t, i) => {
+      t.addEventListener('click', () => select(t));
+      t.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+          e.preventDefault();
+          const dir = e.key === 'ArrowRight' ? 1 : -1;
+          const next = tabs[(i + dir + tabs.length) % tabs.length];
+          next.focus();
+          select(next);
+        }
+      });
+    });
+  })();
+</script>
+<!-- defer: parse HTML first, then run scripts in order — keeps the 900 KB
+     embedded demo blob out of the critical render path so the UI paints fast. -->
+<script defer src="app.js"></script>
+<script defer src="field.js"></script>
+<script defer src="separate.js"></script>
+<script defer src="stems.js"></script>
+<!-- demo audio is only needed on the "Load demo" click, so it loads last. -->
+<script defer src="demo-audio.js"></script>
+</body>
+</html>

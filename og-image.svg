@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0a0e15"/>
+      <stop offset="1" stop-color="#05070b"/>
+    </linearGradient>
+    <linearGradient id="spec" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#58e6c8"/>
+      <stop offset="1" stop-color="#ffc14a"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)"/>
+
+  <g stroke="#78c8dc" stroke-opacity="0.06" stroke-width="1">
+    <line x1="0" y1="105" x2="1200" y2="105"/><line x1="0" y1="210" x2="1200" y2="210"/>
+    <line x1="0" y1="315" x2="1200" y2="315"/><line x1="0" y1="420" x2="1200" y2="420"/>
+    <line x1="0" y1="525" x2="1200" y2="525"/>
+    <line x1="200" y1="0" x2="200" y2="630"/><line x1="400" y1="0" x2="400" y2="630"/>
+    <line x1="600" y1="0" x2="600" y2="630"/><line x1="800" y1="0" x2="800" y2="630"/>
+    <line x1="1000" y1="0" x2="1000" y2="630"/>
+  </g>
+
+  <!-- phosphor mark -->
+  <rect x="92" y="112" width="9" height="34" rx="2" fill="#58e6c8"/>
+  <!-- brand chip -->
+  <text x="115" y="140" font-family="'IBM Plex Mono', monospace" font-size="26" font-weight="600" fill="#58e6c8" letter-spacing="8">LUXEN</text>
+
+  <!-- title, its own line to avoid inline-span overlap -->
+  <text x="90" y="230" font-family="'Space Grotesk', 'Segoe UI', Arial, sans-serif" font-size="76" font-weight="700" fill="#e6eef2">Mix Analyzer</text>
+
+  <text x="92" y="288" font-family="'IBM Plex Mono', monospace" font-size="23" fill="#8aa0ac">A browser audio workbench — analyse, separate, retune, export.</text>
+
+  <text x="92" y="330" font-family="'IBM Plex Mono', monospace" font-size="16" fill="#58e6c8" letter-spacing="2">ITU-R LUFS · HAND-ROLLED FFT · PHASE VOCODER · SEPARATION</text>
+
+  <!-- spectrum bars motif -->
+  <g>
+    <rect x="92"  y="470" width="26" height="70"  fill="url(#spec)" opacity="0.9"/>
+    <rect x="130" y="430" width="26" height="110" fill="url(#spec)" opacity="0.9"/>
+    <rect x="168" y="390" width="26" height="150" fill="url(#spec)" opacity="0.9"/>
+    <rect x="206" y="450" width="26" height="90"  fill="url(#spec)" opacity="0.9"/>
+    <rect x="244" y="410" width="26" height="130" fill="url(#spec)" opacity="0.9"/>
+    <rect x="282" y="480" width="26" height="60"  fill="url(#spec)" opacity="0.9"/>
+    <rect x="320" y="440" width="26" height="100" fill="url(#spec)" opacity="0.9"/>
+    <rect x="358" y="400" width="26" height="140" fill="url(#spec)" opacity="0.9"/>
+    <rect x="396" y="465" width="26" height="75"  fill="url(#spec)" opacity="0.9"/>
+    <rect x="434" y="420" width="26" height="120" fill="url(#spec)" opacity="0.9"/>
+  </g>
+
+  <!-- spatial field node cluster motif -->
+  <g>
+    <path d="M880 360 L940 300 L1010 340 L1060 270 M940 300 L980 420 L1080 400 L1010 340" stroke="#78c8dc" stroke-opacity="0.25" stroke-width="1.5" fill="none"/>
+    <circle cx="880"  cy="360" r="9"  fill="#58e6c8"/>
+    <circle cx="940"  cy="300" r="14" fill="#7fe6d0"/>
+    <circle cx="1010" cy="340" r="11" fill="#b9d98f"/>
+    <circle cx="1060" cy="270" r="8"  fill="#ffc14a"/>
+    <circle cx="980"  cy="420" r="16" fill="#4ad0c0"/>
+    <circle cx="1080" cy="400" r="10" fill="#ffcf6a"/>
+  </g>
+
+  <text x="92" y="595" font-family="'IBM Plex Mono', monospace" font-size="16" fill="#566470" letter-spacing="1">Justice Brutus — Luxen · runs entirely in your browser, no uploads</text>
+</svg>
